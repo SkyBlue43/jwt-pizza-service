@@ -11,6 +11,15 @@ beforeAll(async () => {
   expectValidJwt(testUserAuthToken);
 });
 
+test("register failure", async () => {
+  let newUser = testUser.email.delete;
+  const registerRes = await request(app).post("/api/auth").send(newUser);
+  expect(registerRes.status).toBe(400);
+  expect(registerRes.body).toEqual({
+    message: "name, email, and password are required",
+  });
+});
+
 test("login", async () => {
   const loginRes = await request(app).put("/api/auth").send(testUser);
   expect(loginRes.status).toBe(200);
@@ -28,6 +37,15 @@ test("logout", async () => {
 
   expect(logoutRes.status).toBe(200);
   expect(logoutRes.body).toEqual({ message: "logout successful" });
+});
+
+test("logout unauthorized", async () => {
+  const logoutRes = await request(app)
+    .delete("/api/auth")
+    .set("Authorization", `Bearer randomstring`);
+
+  expect(logoutRes.status).toBe(401);
+  expect(logoutRes.body).toEqual({ message: "unauthorized" });
 });
 
 function expectValidJwt(potentialJwt) {
