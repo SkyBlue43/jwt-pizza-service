@@ -75,11 +75,19 @@ test("delete franchise", async () => {
   expect(franchiseRes.body).toEqual({ message: "franchise deleted" });
 });
 
-function expectValidJwt(potentialJwt) {
-  expect(potentialJwt).toMatch(
-    /^[a-zA-Z0-9\-_]*\.[a-zA-Z0-9\-_]*\.[a-zA-Z0-9\-_]*$/
-  );
-}
+test("get user franchises", async () => {
+  const franchiseRes = await request(app)
+    .get(`/api/franchise/2`)
+    .set("Authorization", `Bearer ${testAdminAuthToken}`);
+  expect(franchiseRes.status).toBe(200);
+});
+
+test("get  franchises", async () => {
+  const franchiseRes = await request(app)
+    .get(`/api/franchise?page=0&limit=10&name=*`)
+    .set("Authorization", `Bearer ${testAdminAuthToken}`);
+  expect(franchiseRes.status).toBe(200);
+});
 
 test("can't access because I'm a user", async () => {
   const testUser = {
@@ -110,6 +118,12 @@ test("can't access because I'm a user", async () => {
     .set("Authorization", `Bearer ${testUserAuthToken}`);
   expect(store2Res.status).toBe(403);
 });
+
+function expectValidJwt(potentialJwt) {
+  expect(potentialJwt).toMatch(
+    /^[a-zA-Z0-9\-_]*\.[a-zA-Z0-9\-_]*\.[a-zA-Z0-9\-_]*$/
+  );
+}
 
 async function createAdminUser() {
   let user = { password: "toomanysecrets", roles: [{ role: Role.Admin }] };
