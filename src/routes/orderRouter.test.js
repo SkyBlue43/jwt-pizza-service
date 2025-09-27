@@ -5,6 +5,13 @@ const { Role, DB } = require("../database/database.js");
 const testUser = { name: "pizza diner", email: "reg@test.com", password: "a" };
 let adminUser;
 
+const dinerOrder = {
+  franchiseId: 1,
+  storeId: 1,
+  items: [{ menuId: 1, description: "Veggie", price: 0.05 }],
+  id: 1,
+};
+
 const menuItem = {
   title: "Monster",
   image: "random.png",
@@ -30,7 +37,17 @@ test("add menu item diner", async () => {
 });
 
 test("order", async () => {
-  const orderRes = await request(app);
+  const orderRes = await request(app)
+    .post("/api/order")
+    .set("Authorization", `Bearer ${testUserAuthToken}`)
+    .send(dinerOrder);
+  expect(orderRes.status).toBe(200);
+  expect(orderRes.body.order).toEqual({
+    franchiseId: 1,
+    storeId: 1,
+    items: [{ menuId: 1, description: "Veggie", price: 0.05 }],
+    id: expect.any(Number),
+  });
 });
 
 test("add menu item", async () => {
