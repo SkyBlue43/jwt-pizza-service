@@ -5,10 +5,12 @@ const { Role, DB } = require("../database/database.js");
 let testUserAuthToken;
 let adminUser;
 let testAdminAuthToken;
-const franchise = {
+
+const franchise2 = {
   name: randomName(),
-  admins: [{ email: "f@jwt.com", id: 4, name: "pizza franchisee" }],
+  admins: [{ email: "nothing", id: 2, name: "nothing" }],
 };
+
 let franchiseID;
 const store = {
   name: "Test Store",
@@ -23,6 +25,12 @@ beforeAll(async () => {
 });
 
 test("create franchise", async () => {
+  const { id, name, email, password } = await createAdminUser();
+  const franchise = {
+    name: randomName(),
+    admins: [{ email, id, name }],
+  };
+
   const franchiseRes = await request(app)
     .post("/api/franchise")
     .set("Authorization", `Bearer ${testAdminAuthToken}`)
@@ -33,9 +41,9 @@ test("create franchise", async () => {
     name: expect.any(String),
     admins: [
       {
-        email: "f@jwt.com",
+        email: email,
         id: expect.any(Number),
-        name: "pizza franchisee",
+        name: name,
       },
     ],
     id: expect.any(Number),
@@ -111,7 +119,7 @@ test("can't access because I'm a user", async () => {
   const franchiseRes = await request(app)
     .post("/api/franchise")
     .set("Authorization", `Bearer ${testUserAuthToken}`)
-    .send(franchise);
+    .send(franchise2);
   expect(franchiseRes.status).toBe(403);
 
   const store2Res = await request(app)
