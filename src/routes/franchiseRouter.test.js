@@ -25,7 +25,7 @@ beforeAll(async () => {
 });
 
 test("create franchise", async () => {
-  const { id, name, email, password } = await createAdminUser();
+  const { id, name, email } = await createAdminUser();
   const franchise = {
     name: randomName(),
     admins: [{ email, id, name }],
