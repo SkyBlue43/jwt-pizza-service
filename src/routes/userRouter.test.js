@@ -7,6 +7,7 @@ const testUser = {
   email: "reg@test.com",
   password: "a",
 };
+let adminUser, testAdminAuthToken, testUserAuthToken;
 
 beforeAll(async () => {
   testUser.email = Math.random().toString(36).substring(2, 12) + "@test.com";
