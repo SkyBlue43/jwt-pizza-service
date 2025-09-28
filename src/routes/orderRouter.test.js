@@ -5,13 +5,6 @@ const { Role, DB } = require("../database/database.js");
 const testUser = { name: "pizza diner", email: "reg@test.com", password: "a" };
 let adminUser;
 
-const dinerOrder = {
-  franchiseId: 1,
-  storeId: 1,
-  items: [{ menuId: 1, description: "Veggie", price: 0.05 }],
-  id: 1,
-};
-
 const menuItem = {
   title: "Monster",
   image: "random.png",
@@ -36,15 +29,75 @@ test("add menu item diner", async () => {
   expect(menuRes.status).toBe(403);
 });
 
-test("order", async () => {
+test("order flow", async () => {
+  const {
+    id: adminId,
+    name: adminName,
+    email: adminEmail,
+  } = await createAdminUser();
+
+  const loginRes = await request(app).put("/api/auth").send({
+    email: adminEmail,
+    password: "toomanysecrets",
+  });
+  const testAdminAuthToken = loginRes.body.token;
+  expectValidJwt(testAdminAuthToken);
+
+  const franchise = {
+    name: randomName(),
+    admins: [{ email: adminEmail, id: adminId, name: adminName }],
+  };
+
+  const franchiseRes = await request(app)
+    .post("/api/franchise")
+    .set("Authorization", `Bearer ${testAdminAuthToken}`)
+    .send(franchise);
+
+  const franchiseId = franchiseRes.body.id;
+
+  const store = { name: "Test Store" };
+  const storeRes = await request(app)
+    .post(`/api/franchise/${franchiseId}/store`)
+    .set("Authorization", `Bearer ${testAdminAuthToken}`)
+    .send(store);
+
+  const storeId = storeRes.body.id;
+
+  const dinerOrder = {
+    franchiseId,
+    storeId,
+    items: [{ menuId: 1, description: "Veggie", price: 0.05 }],
+  };
+
+  const menuRes = await request(app)
+    .put("/api/order/menu")
+    .set("Authorization", `Bearer ${testAdminAuthToken}`)
+    .send({
+      title: "Monster",
+      image: "random.png",
+      price: 2.0,
+      description: "A garden of fright",
+    });
+
+  expect(menuRes.status).toBe(200);
+  const lastMenuItem = menuRes.body[menuRes.body.length - 1];
+  expect(lastMenuItem).toEqual({
+    id: expect.any(Number),
+    title: "Monster",
+    image: "random.png",
+    price: 2.0,
+    description: "A garden of fright",
+  });
+
   const orderRes = await request(app)
     .post("/api/order")
     .set("Authorization", `Bearer ${testUserAuthToken}`)
     .send(dinerOrder);
+
   expect(orderRes.status).toBe(200);
   expect(orderRes.body.order).toEqual({
-    franchiseId: 1,
-    storeId: 1,
+    franchiseId,
+    storeId,
     items: [{ menuId: 1, description: "Veggie", price: 0.05 }],
     id: expect.any(Number),
   });
