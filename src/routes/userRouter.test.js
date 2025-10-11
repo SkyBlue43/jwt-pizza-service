@@ -61,18 +61,18 @@ test("list users", async () => {
     .get("/api/user")
     .set("Authorization", "Bearer " + userToken);
   expect(listUsersRes.status).toBe(200);
+  console.log(listUsersRes.body.list);
 });
 
 async function registerUser(service) {
-  const testUser = {
-    name: "pizza diner",
-    email: `${randomName()}@test.com`,
-    password: "a",
-  };
-  const registerRes = await service.post("/api/auth").send(testUser);
-  registerRes.body.user.password = testUser.password;
+  const testUser = await createAdminUser();
+  // Instead of posting again to /api/auth, just login
+  const loginRes = await service.put("/api/auth").send({
+    email: testUser.email,
+    password: testUser.password,
+  });
 
-  return [registerRes.body.user, registerRes.body.token];
+  return [testUser, loginRes.body.token];
 }
 
 function randomName() {

@@ -1,4 +1,4 @@
-// node
+// node src/routes/random.js
 const { Role, DB } = require("../database/database.js");
 
 async function createAdminUser() {
