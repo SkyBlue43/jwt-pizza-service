@@ -61,7 +61,15 @@ test("list users", async () => {
     .get("/api/user")
     .set("Authorization", "Bearer " + userToken);
   expect(listUsersRes.status).toBe(200);
-  console.log(listUsersRes.body.list);
+});
+
+test("delete users", async () => {
+  const [user, userToken] = await registerUser(request(app));
+  const deleteRes = await request(app)
+    .delete(`/api/user/${user.id}`)
+    .set("Authorization", "Bearer " + userToken);
+  expect(deleteRes.status).toBe(200);
+  expect(deleteRes.body).toEqual({ message: "user deleted" });
 });
 
 async function registerUser(service) {

@@ -107,17 +107,36 @@ class DB {
     }
   }
 
-  async getListUsers() {
+  async getListUsers(authUser, page = 0, limit = 10, nameFilter = "*") {
     const connection = await this.getConnection();
-    try {
-      const users = await this.query(connection, `SELECT * FROM user`);
 
+    const offset = page * limit;
+    nameFilter = nameFilter.replace(/\*/g, "%");
+
+    try {
+      // Get base user data with optional name filtering
+      let users = await this.query(
+        connection,
+        `SELECT id, name, email 
+         FROM user 
+         WHERE name LIKE ? 
+         LIMIT ${limit + 1} OFFSET ${offset}`,
+        [nameFilter]
+      );
+
+      const more = users.length > limit;
+      if (more) {
+        users = users.slice(0, limit);
+      }
+
+      // Enrich each user with roles (and optionally filter depending on who’s asking)
       const results = [];
       for (const user of users) {
         const roleResult = await this.query(
           connection,
           `
-          SELECT * FROM userRole
+          SELECT * 
+          FROM userRole
           WHERE userId=?
           ORDER BY 
             CASE role
@@ -130,10 +149,19 @@ class DB {
           [user.id]
         );
 
-        const topRole = roleResult[0];
-        results.push({ ...user, topRole, password: undefined });
+        const roles = roleResult.map((r) => ({
+          role: r.role,
+          objectId: r.objectId,
+        }));
+
+        results.push({
+          ...user,
+          roles,
+          password: undefined, // never send password to client
+        });
       }
-      return results;
+
+      return [results, more];
     } finally {
       connection.end();
     }
@@ -158,6 +186,28 @@ class DB {
         await this.query(connection, query);
       }
       return this.getUser(email, password);
+    } finally {
+      connection.end();
+    }
+  }
+
+  async deleteUser(userId) {
+    const connection = await this.getConnection();
+    try {
+      await connection.beginTransaction();
+      try {
+        await this.query(connection, `DELETE FROM userRole WHERE userid=?`, [
+          userId,
+        ]);
+        await this.query(connection, `DELETE FROM auth WHERE userid=?`, [
+          userId,
+        ]);
+        await this.query(connection, `DELETE FROM user WHERE id=?`, [userId]);
+        await connection.commit();
+      } catch {
+        await connection.rollback();
+        throw new StatusCodeError("unable to delete user", 500);
+      }
     } finally {
       connection.end();
     }

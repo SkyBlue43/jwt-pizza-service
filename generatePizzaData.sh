@@ -1,3 +1,4 @@
+#
 # Check if host is provided as a command line argument
 if [ -z "$1" ]; then
   echo "Usage: $0 <host>"
