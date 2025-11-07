@@ -1,19 +1,75 @@
-// const os = require("os");
+const os = require("os");
 const config = require("./config");
 
 // Metrics stored in memory
 const requests = {};
-let greetingChangedCount = 0;
 
 // Function to track when the greeting is changed
-function greetingChanged() {
-  greetingChangedCount++;
+let authSuccess = 0;
+let authFailed = 0;
+let activeUsers = 0;
+
+function addUser() {
+  activeUsers++;
+}
+
+function decrementUser() {
+  activeUsers++;
+}
+
+function trackAuth(req, res, next) {
+  const originalJson = res.json.bind(res);
+  const originalStatus = res.status.bind(res);
+
+  let statusCode = 200; // default
+
+  res.status = (code) => {
+    statusCode = code;
+    return originalStatus(code);
+  };
+
+  res.json = (body) => {
+    if (statusCode >= 200 && statusCode < 300) authSuccess++;
+    else if (statusCode >= 400 && statusCode < 600) authFailed++;
+
+    return originalJson(body);
+  };
+
+  next();
+}
+
+let pizzaSuccessCount = 0;
+let pizzaFailureCount = 0;
+let pizzaRevenue = 0;
+let totalPizzaLatency = 0;
+let pizzaCountForLatency = 0;
+let totalRequests = 0;
+let totalLatency = 0;
+
+function purchasePizza(success, latency, price) {
+  if (success) {
+    pizzaSuccessCount++;
+    pizzaRevenue += Number(price);
+  } else {
+    pizzaFailureCount++;
+  }
+
+  totalPizzaLatency += latency;
+  pizzaCountForLatency++;
 }
 
 // Middleware to track requests
 function requestTracker(req, res, next) {
   const endpoint = `[${req.method}] ${req.path}`;
   requests[endpoint] = (requests[endpoint] || 0) + 1;
+  totalRequests++;
+
+  const startTime = Date.now();
+  res.on("finish", () => {
+    const latency = Date.now() - startTime;
+    totalLatency += latency;
+  });
+
   next();
 }
 
@@ -26,17 +82,65 @@ setInterval(() => {
         endpoint,
       })
     );
+  });
+  metrics.push(
+    createMetric("auth_success", authSuccess, "1", "sum", "asInt", {})
+  );
+  metrics.push(
+    createMetric("auth_failure", authFailed, "1", "sum", "asInt", {})
+  );
+
+  metrics.push(
+    createMetric("pizza_success", pizzaSuccessCount, "1", "sum", "asInt", {})
+  );
+  metrics.push(
+    createMetric("pizza_failure", pizzaFailureCount, "1", "sum", "asInt", {})
+  );
+  metrics.push(
+    createMetric("pizza_revenue", pizzaRevenue, "USD", "sum", "asDouble", {})
+  );
+
+  metrics.push(
+    createMetric("active_users", activeUsers, "1", "sum", "asInt", {})
+  );
+
+  if (pizzaCountForLatency > 0) {
+    const avgLatency = totalPizzaLatency / pizzaCountForLatency;
     metrics.push(
       createMetric(
-        "greetingChange",
-        greetingChangedCount,
-        "1",
-        "sum",
-        "asInt",
+        "pizza_latency_avg",
+        avgLatency,
+        "ms",
+        "gauge",
+        "asDouble",
         {}
       )
     );
-  });
+  }
+
+  if (totalLatency > 0) {
+    const avgTotalLatency = totalLatency / totalRequests;
+    metrics.push(
+      createMetric(
+        "total_latency_avg",
+        avgTotalLatency,
+        "ms",
+        "gauge",
+        "asDouble",
+        {}
+      )
+    );
+  }
+
+  const cpuPercent = getCpuUsagePercentage();
+  metrics.push(
+    createMetric("cpu_usage", cpuPercent, "%", "gauge", "asDouble", {})
+  );
+
+  const memoryPercent = getMemoryUsagePercentage();
+  metrics.push(
+    createMetric("memory_usage", memoryPercent, "%", "gauge", "asDouble", {})
+  );
 
   sendMetricToGrafana(metrics);
 }, 10000);
@@ -94,13 +198,11 @@ function sendMetricToGrafana(metrics) {
     ],
   };
 
-  console.log("🛰️ Attempting to push metrics to:", config.url);
-
-  fetch(`${config.url}`, {
+  fetch(`${config.metric.url}`, {
     method: "POST",
     body: JSON.stringify(body),
     headers: {
-      Authorization: `Bearer ${config.apiKey}`,
+      Authorization: `Bearer ${config.metric.apiKey}`,
       "Content-Type": "application/json",
     },
   })
@@ -114,17 +216,23 @@ function sendMetricToGrafana(metrics) {
     });
 }
 
-module.exports = { requestTracker, greetingChanged };
+function getCpuUsagePercentage() {
+  const cpuUsage = os.loadavg()[0] / os.cpus().length;
+  return cpuUsage.toFixed(2) * 100;
+}
 
-// function getCpuUsagePercentage() {
-//   const cpuUsage = os.loadavg()[0] / os.cpus().length;
-//   return cpuUsage.toFixed(2) * 100;
-// }
+function getMemoryUsagePercentage() {
+  const totalMemory = os.totalmem();
+  const freeMemory = os.freemem();
+  const usedMemory = totalMemory - freeMemory;
+  const memoryUsage = (usedMemory / totalMemory) * 100;
+  return memoryUsage.toFixed(2);
+}
 
-// function getMemoryUsagePercentage() {
-//   const totalMemory = os.totalmem();
-//   const freeMemory = os.freemem();
-//   const usedMemory = totalMemory - freeMemory;
-//   const memoryUsage = (usedMemory / totalMemory) * 100;
-//   return memoryUsage.toFixed(2);
-// }
+module.exports = {
+  requestTracker,
+  trackAuth,
+  purchasePizza,
+  addUser,
+  decrementUser,
+};
