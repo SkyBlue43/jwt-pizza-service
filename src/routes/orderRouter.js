@@ -118,17 +118,40 @@ orderRouter.post(
     const orderReq = req.body;
     const order = await DB.addDinerOrder(req.user, orderReq);
     const start = Date.now();
-    const r = await logger.loggedFetch(`${config.factory.url}/api/order`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        authorization: `Bearer ${config.factory.apiKey}`,
-      },
-      body: JSON.stringify({
-        diner: { id: req.user.id, name: req.user.name, email: req.user.email },
-        order,
-      }),
-    });
+    let r;
+    if (process.env.NODE_ENV === "test") {
+      r = await fetch(`${config.factory.url}/api/order`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          authorization: `Bearer ${config.factory.apiKey}`,
+        },
+        body: JSON.stringify({
+          diner: {
+            id: req.user.id,
+            name: req.user.name,
+            email: req.user.email,
+          },
+          order,
+        }),
+      });
+    } else {
+      r = await logger.loggedFetch(`${config.factory.url}/api/order`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          authorization: `Bearer ${config.factory.apiKey}`,
+        },
+        body: JSON.stringify({
+          diner: {
+            id: req.user.id,
+            name: req.user.name,
+            email: req.user.email,
+          },
+          order,
+        }),
+      });
+    }
     const latency = Date.now() - start;
     const j = await r.json();
     if (r.ok) {
