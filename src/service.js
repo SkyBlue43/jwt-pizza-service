@@ -6,6 +6,7 @@ const userRouter = require("./routes/userRouter.js");
 const version = require("./version.json");
 const config = require("./config.js");
 const metrics = require("./metrics");
+const logger = require("./logger");
 
 const app = express();
 app.use(express.json());
@@ -19,6 +20,7 @@ app.use((req, res, next) => {
 });
 
 app.use(metrics.requestTracker);
+app.use(logger.httpLogger);
 
 const apiRouter = express.Router();
 app.use("/api", apiRouter);
@@ -54,6 +56,8 @@ app.use("*", (req, res) => {
 });
 
 // Default error handler for all exceptions and errors.
+app.use(logger.errorLogger);
+
 app.use((err, req, res, next) => {
   res
     .status(err.statusCode ?? 500)
