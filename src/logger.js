@@ -1,4 +1,4 @@
-const config = require("../config.json");
+const config = require("./config.js");
 
 class Logger {
   dbLogger = (sql, error) => {
@@ -53,7 +53,11 @@ class Logger {
   };
 
   log(level, type, logData) {
-    const labels = { component: config.source, level: level, type: type };
+    const labels = {
+      component: config.logging.source,
+      level: level,
+      type: type,
+    };
     const values = [this.nowString(), this.sanitize(logData)];
     const logEvent = { streams: [{ stream: labels, values: [values] }] };
 
@@ -80,12 +84,12 @@ class Logger {
 
   sendLogToGrafana(event) {
     const body = JSON.stringify(event);
-    fetch(`${config.url}`, {
+    fetch(`${config.logging.url}`, {
       method: "post",
       body: body,
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${config.userId}:${config.apiKey}`,
+        Authorization: `Bearer ${config.logging.userId}:${config.logging.apiKey}`,
       },
     }).then((res) => {
       if (!res.ok) console.log("Failed to send log to Grafana");
