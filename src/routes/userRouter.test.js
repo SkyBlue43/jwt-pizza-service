@@ -1,6 +1,6 @@
 describe("franchise placeholder", () => {
   it("placeholder test", () => {
-    // intentionally empty
+    null;
   });
 });
 
