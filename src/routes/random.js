@@ -3,7 +3,7 @@ const { Role, DB } = require("../database/database.js");
 
 async function createAdminUser() {
   let user = {
-    password: "admin",
+    password: "canyoureallyguessmypassword",
     roles: [{ role: Role.Admin }],
   };
 
@@ -12,7 +12,7 @@ async function createAdminUser() {
 
   user = await DB.addUser(user);
 
-  return { ...user, password: "admin" };
+  return { ...user, password: "canyoureallyguessmypassword" };
 }
 
 createAdminUser()

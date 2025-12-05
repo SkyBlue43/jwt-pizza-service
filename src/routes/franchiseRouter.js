@@ -79,6 +79,7 @@ franchiseRouter.docs = [
 // getFranchises
 franchiseRouter.get(
   "/",
+  authRouter.authenticateToken,
   asyncHandler(async (req, res) => {
     const [franchises, more] = await DB.getFranchises(
       req.user,
@@ -122,12 +123,24 @@ franchiseRouter.post(
 // deleteFranchise
 franchiseRouter.delete(
   "/:franchiseId",
+  authRouter.authenticateToken,
   asyncHandler(async (req, res) => {
     const franchiseId = Number(req.params.franchiseId);
+    const franchise = await DB.getFranchise({ id: franchiseId });
+
+    if (
+      !franchise ||
+      (!req.user.isRole(Role.Admin) &&
+        !franchise.admins.some((a) => a.id === req.user.id))
+    ) {
+      throw new StatusCodeError("unable to delete franchise", 403);
+    }
+
     await DB.deleteFranchise(franchiseId);
     res.json({ message: "franchise deleted" });
   })
 );
+
 //A basic user shouldn't be able to delete a store!!!
 
 // createStore
